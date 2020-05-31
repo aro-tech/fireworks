@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+
+<html>
+<body>
+<canvas id="c1" width="1000" height="560" style="border:1px solid">
+Canvas object not supported
+</canvas>
+<script>
+const GRAVITY = 2;
+const CANVAS_HEIGHT = 560;
+const CANVAS_WIDTH = 1000;
+const Y_0 = CANVAS_HEIGHT;
+const X_CENTER = CANVAS_WIDTH / 2;
+const TARGET_TIME = 20;
+const BACKGROUND = 'black';
+const TEXT_COLOR = 'white';
+const TEXT_X = 300;
+const TEXT_Y = 40;
+const TEXT_WIDTH = 380;
+const TEXT_HEIGHT = 40;
+const EXPLODE_POWER = 24;
+const COLORS = ['red','white','blue','turquoise','pink','orange','purple','red','yellow'];
+var points = new Array();
+var clicks = 0;
+var frames = 0;
+var c1 = document.getElementById("c1");
+var ctx = c1.getContext("2d");
+
+function chooseColor() {
+	var ix = (clicks + rand(1))%COLORS.length;
+	return COLORS[ix];
+}
+
+function initPage() {
+	ctx.fillStyle = BACKGROUND;
+	ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+	ctx.fillStyle = TEXT_COLOR;
+	ctx.font = "24px Arial";
+	ctx.fillText("Click anywhere to shoot fireworks.", TEXT_X, TEXT_Y);
+}
+
+function flipY(coordY) {
+	return Y_0 - coordY;
+}
+
+function rand(max) {
+	return Math.round(max * Math.random());	
+}
+
+
+function point(x,y, vx, vy, color, t) {
+	return {x: x, y: y, vx: vx, vy: vy, color: color, t: t, explodeT: TARGET_TIME, extinctT: TARGET_TIME + rand(4), explodeSize: 60 + rand(60),
+			clearX: -1, clearY: -1, gen: 1,
+		erase: function() {
+			ctx.fillStyle = BACKGROUND;
+			ctx.fillRect(this.clearX - 2, this.clearY - 2, 5, 5);
+		},
+		draw: function() {
+			if(this.clearX >= 0) {
+				this.erase();
+			}
+			ctx.fillStyle = this.color;
+			ctx.fillRect(this.x, this.y, 2, 2);
+			this.clearX = this.x;
+			this.clearY = this.y;
+		},
+		update: function(nextPoints) {
+			this.t++;	
+			//ctx.clearRect(this.x, this.y, 1, 1);			
+			this.x = this.x + this.vx;
+			this.y = this.y + this.vy;	
+			this.vy += GRAVITY;
+			if(this.isVisible()) {
+				nextPoints.push(this);
+			} else {
+				this.erase();
+			}
+			if(this.t === this.explodeT) {
+				//alert('explode');
+				for(var i = 0; i < this.explodeSize; i++) {
+					var xpoint = point(this.x, this.y, rand(EXPLODE_POWER) - EXPLODE_POWER / 2, rand(EXPLODE_POWER) - EXPLODE_POWER / 2, this.color, 0);
+					xpoint.gen = this.gen + 1;
+					xpoint.extinctT = rand(20) - this.gen;
+					xpoint.explodeSize = 2 + rand(Math.max(40 - i, 10));
+					
+					var xprand = 20;
+					if(clicks > 9 && clicks%5 === 0) {
+						xprand = 5;
+					}
+					xpoint.explodeT = i*this.gen + rand(xprand);
+
+					nextPoints.push(xpoint);
+				} 
+			}
+		},
+		isVisible() {
+			if(this.t >= this.extinctT) {
+				return false;
+			}
+			return (this.y >= -10 && this.y <=CANVAS_HEIGHT && this.x >= 0 && this.x <= CANVAS_WIDTH && this.t < this.explodeT);
+		}
+	};
+};
+
+function eraseText() {
+		ctx.fillStyle = BACKGROUND;
+		ctx.fillRect(TEXT_X, TEXT_Y - TEXT_HEIGHT, TEXT_WIDTH, TEXT_HEIGHT + 6);
+}
+
+function handleClick(e) {
+	if(clicks < 1) {
+		eraseText();
+	}
+	var vx = (e.pageX - X_CENTER) / TARGET_TIME;
+	var ytemp = flipY(e.pageY);
+	var vy = -1 * ((TARGET_TIME * TARGET_TIME * GRAVITY / 2) + ytemp) / TARGET_TIME;
+	points.push(point(X_CENTER, Y_0, vx, vy, chooseColor(), 0));
+	clicks++;
+}
+
+function drawAndUpdateAll() {
+	var next = new Array();
+	frames++;
+	if(frames%2 == 0) { // slow the animation
+		while(points.length> 0) {
+			var pt = points.pop();
+			pt.draw();
+			pt.update(next);
+		}
+		points = next;
+	}
+
+	window.requestAnimationFrame(function() {
+		drawAndUpdateAll();
+	});
+}
+
+function run() {
+	initPage();
+	c1.addEventListener('click', handleClick);
+	window.requestAnimationFrame(function() {
+		drawAndUpdateAll();
+	});
+}
+
+run();
+
+</script>
+<br/>
+</body>
+</html>
